@@ -48,6 +48,7 @@ class Client
         $this->login = $login;
         $this->password = $password;
         $this->client = $client;
+        $this->login();
     }
 
     public function __destruct()
