@@ -1,0 +1,13 @@
+suites:
+    acme_suite:
+        namespace: AirControl\Api
+        psr4_prefix: AirControl\Api
+
+extensions:
+    - PhpSpec\Extension\CodeCoverageExtension
+
+code_coverage:
+    format:
+        - clover
+    output:
+        clover: coverage.xml
