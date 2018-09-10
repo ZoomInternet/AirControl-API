@@ -1,0 +1,20 @@
+---
+aircontrol:
+  host: '127.0.0.1'
+  port: 9082
+  inform_port: 9081
+  user: 'admin'
+  password: '1234567'
+
+database:
+  host: localhost
+  name: zoom
+  user: root
+  password: password
+
+devices:
+  login: 'ubnt'
+  password: 'ubnt'
+  ssh_port: 22
+  https_port: 443
+

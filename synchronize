@@ -1,0 +1,113 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# -*- mode: python -*-
+
+import json
+import socket
+import struct
+
+import sys
+
+
+if not getattr(sys, 'frozen', False):
+    import imp
+
+    imp.load_module('py_aircontrol', *imp.find_module('lib'))
+
+from py_aircontrol import ConfigManager
+from py_aircontrol import AirControlAPI
+from py_aircontrol import Database
+
+def ip2long(ip):
+    """
+    Convert an IP string to long
+    """
+    packedIP = socket.inet_aton(ip)
+    return struct.unpack("!L", packedIP)[0]
+
+
+def long2ip(long):
+    """
+    Convert a long to IP string
+    """
+    return socket.inet_ntoa(struct.pack('!L', long))
+
+
+def main():
+    config = ConfigManager()
+    api = AirControlAPI(config)
+    api.login()
+    # collect all devices
+    ac_devices = json.loads(api.get_devices())
+    offline_devices = []
+    # fist reconnect all devices
+    for data in ac_devices['results']:
+        str1 = data['properties']['details']
+        str_end = (str1.find("Status:") + 8)
+        required_output = str1[str_end:(str_end + 7)]
+        if required_output == "offline":
+            offline_devices.append(data['deviceId'])
+
+    api.reconnect_device(offline_devices)
+    database = Database(config)
+    ip_array = []
+    # fix database mess, convert to proper array
+    for dev in database.get_devices():
+        ip_array.append(dev[0])
+
+    for data in ac_devices['results']:
+        # Trying to find if ip address is already in AirControl
+        try:
+            index_id = ip_array.index(long2ip(data['properties']['ip']))
+        except ValueError:
+            index_id = 'null'
+        # removing ip from our database array by index id
+        if index_id is not 'null':
+            ip_array.pop(index_id)
+
+    # finally add missing ips
+    for ip in ip_array:
+        api.add_device(ip)
+
+    # time to start monitoring devices, ac_devices was untouched so save requests...
+    for data in ac_devices['results']:
+        str1 = data['properties']['details']
+        str_end = (str1.find("Status:") + 8)
+        required_output = str1[str_end:(str_end + 13)]
+        if required_output == "not monitored":
+            api.start_monitoring(data['deviceId'])
+
+
+if __name__ == '__main__':
+    try:
+        arg = sys.argv[1]
+    except Exception:
+        print("usage: " + sys.argv[0] + " command\n")
+        print("Available commands:")
+        print("discover - start discovery by ip ragnes")
+        print("sync - synchronize with panel")
+        print("reconnect - reconnect devices")
+        sys.exit(0)
+
+    if arg == "discover":
+        config = ConfigManager()
+        api = AirControlAPI(config)
+        api.login()
+        api.scan_network()
+    elif arg == "sync":
+        main()
+    elif arg == "reconnect":
+        config = ConfigManager()
+        api = AirControlAPI(config)
+        api.login()
+        ac_devices = json.loads(api.get_devices())
+        offline_devices = []
+        # fist reconnect all devices
+        for data in ac_devices['results']:
+            str1 = data['properties']['details']
+            str_end = (str1.find("Status:") + 8)
+            required_output = str1[str_end:(str_end + 7)]
+            if required_output == "offline":
+                offline_devices.append(data['deviceId'])
+
+        api.reconnect_device(offline_devices)
